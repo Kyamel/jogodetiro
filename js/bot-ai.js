@@ -104,7 +104,21 @@ function posicaoDeCerco(bot, alvo) {
     n
   };
 }
-function decidirAcaoBotSimples(bot, contexto) {
+// Decide como o bot se posiciona no combate usando bandas de distancia COM
+// histerese (deadband). Sem isso, na fronteira exata (ex: 250 px) o bot alterna
+// entre aproximar e desviar a cada quadro e fica "tremendo". Com as zonas mortas,
+// ele so muda de modo depois de entrar bem na proxima faixa.
+function modoCombate(bot, dist) {
+  let m = bot.combatMode;
+  if (dist > 250) m = 'aproxima';
+  else if (dist < 150) m = 'recua';
+  else if (m === 'aproxima' && dist > 210) m = 'aproxima';
+  else if (m === 'recua' && dist < 190) m = 'recua';
+  else m = 'strafe';
+  bot.combatMode = m;
+  return m;
+}
+function decidirAcaoBotSimples(bot, contexto, now) {
   let scoreRecurso = contexto.caixaVisivel
     ? valorCaixaBot(contexto.caixa, bot) - contexto.distCaixa * 0.08
     : 0;
@@ -123,11 +137,7 @@ function decidirAcaoBotSimples(bot, contexto) {
     scoreCobertura += bot.hp < 35 ? 70 : 35;
   else scoreCobertura = 0;
   let scoreRecuo =
-    bot.hp < 35 && !coladoNoInimigo && contexto.inimigoPerto
-      ? contexto.cobertura
-        ? 65
-        : 90
-      : 0;
+    bot.hp < 35 && !coladoNoInimigo && contexto.inimigoPerto ? (contexto.cobertura ? 65 : 90) : 0;
   const acoes = [
     {tipo: 'VOLTAR_ZONA', score: contexto.foraDaZona ? 130 : contexto.pertoDaBorda ? 70 : 0},
     {tipo: 'BUSCAR_COBERTURA', score: scoreCobertura},
@@ -136,7 +146,26 @@ function decidirAcaoBotSimples(bot, contexto) {
     {tipo: 'RECUAR', score: scoreRecuo},
     {tipo: 'PATRULHAR', score: 20}
   ];
-  return acoes.sort((a, b) => b.score - a.score)[0].tipo;
+  acoes.sort((a, b) => b.score - a.score);
+  let melhor = acoes[0];
+  // Histerese de acao: uma vez escolhida, a acao e mantida por um tempo minimo, a
+  // menos que outra fique claramente melhor (ou seja uma emergencia). Isso evita
+  // que o bot troque de decisao a cada quadro (ex: BUSCAR_RECURSO x PATRULHAR) e
+  // fique "tremendo" no lugar apontando para direcoes diferentes.
+  let anterior = bot.acaoAtual;
+  if (anterior && anterior !== melhor.tipo) {
+    let ant = acoes.find((a) => a.tipo === anterior);
+    let scoreAnt = ant ? ant.score : -Infinity;
+    let tempoNaAcao = now - (bot.acaoDesde || 0);
+    let emergencia = melhor.score > scoreAnt + 55;
+    let podeTrocar = tempoNaAcao >= 320 && melhor.score > scoreAnt + 18;
+    if (!emergencia && !podeTrocar) melhor = ant || melhor;
+  }
+  if (bot.acaoAtual !== melhor.tipo) {
+    bot.acaoAtual = melhor.tipo;
+    bot.acaoDesde = now;
+  }
+  return bot.acaoAtual;
 }
 function executarAcaoBotSimples(bot, decisao, contexto, now) {
   if (decisao === 'VOLTAR_ZONA') {
@@ -164,33 +193,37 @@ function executarAcaoBotSimples(bot, decisao, contexto, now) {
     girarEntidadePara(bot, miraAlvo);
     // Em modo de times, se ha aliados engajando o mesmo alvo, o bot ocupa sua
     // posicao de cerco (pinca) para encurralar o inimigo, em vez de so orbitar.
-    let cerco = modoJogo === 'duo' && contexto.alvoVisivel ? posicaoDeCerco(bot, contexto.alvo) : null;
-    if (cerco && Math.hypot(cerco.x - bot.x, cerco.y - bot.y) > 40) {
+    let cerco =
+      modoJogo === 'duo' && contexto.alvoVisivel ? posicaoDeCerco(bot, contexto.alvo) : null;
+    if (cerco && Math.hypot(cerco.x - bot.x, cerco.y - bot.y) > 55) {
       let ang = Math.atan2(cerco.y - bot.y, cerco.x - bot.x);
       moverEntidade(bot, Math.cos(ang) * bot.speed, Math.sin(ang) * bot.speed);
-    } else if (!contexto.alvoVisivel || contexto.distAlvo > 250) {
+    } else if (!contexto.alvoVisivel) {
       moverEntidade(bot, Math.cos(miraAlvo) * bot.speed, Math.sin(miraAlvo) * bot.speed);
-    } else if (contexto.distAlvo < 150) {
-      // Recua mantendo a mira; se a fuga esta bloqueada (encurralado), desliza de
-      // lado em vez de grudar na parede e travar.
-      let recX = -Math.cos(miraAlvo) * (bot.speed * 0.8);
-      let recY = -Math.sin(miraAlvo) * (bot.speed * 0.8);
-      let antesX = bot.x;
-      let antesY = bot.y;
-      moverEntidade(bot, recX, recY);
-      if (Math.hypot(bot.x - antesX, bot.y - antesY) < bot.speed * 0.2) {
+    } else {
+      let modo = modoCombate(bot, contexto.distAlvo);
+      if (modo === 'aproxima') {
+        moverEntidade(bot, Math.cos(miraAlvo) * bot.speed, Math.sin(miraAlvo) * bot.speed);
+      } else if (modo === 'recua') {
+        // Recua mantendo a mira; se a fuga esta bloqueada (encurralado), desliza de
+        // lado em vez de grudar na parede e travar.
+        let antesX = bot.x;
+        let antesY = bot.y;
+        moverEntidade(bot, -Math.cos(miraAlvo) * (bot.speed * 0.8), -Math.sin(miraAlvo) * (bot.speed * 0.8));
+        if (Math.hypot(bot.x - antesX, bot.y - antesY) < bot.speed * 0.2) {
+          moverEntidade(
+            bot,
+            Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
+            Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
+          );
+        }
+      } else {
         moverEntidade(
           bot,
           Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
           Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
         );
       }
-    } else {
-      moverEntidade(
-        bot,
-        Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
-        Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
-      );
     }
     if (contexto.alvoVisivel && now - bot.lastShot > bot.shootCooldown && contexto.distAlvo < 430) {
       bullets.push({

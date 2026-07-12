@@ -1,50 +1,50 @@
 :root {
-    /* Cores base */
-    --color-bg: #07090f;
-    --color-bg-start: #080a10;
-    --color-bg-mid: #101827;
-    --color-bg-end: #07110f;
-    --color-panel: rgba(12, 18, 27, 0.88);
-    --color-panel-strong: rgba(17, 25, 37, 0.96);
-    --color-line: rgba(142, 170, 201, 0.28);
-    --color-text: #edf5ff;
-    --color-muted: #9baec5;
-    --color-cyan: #36d8ff;
-    --color-green: #63f0a0;
-    --color-gold: #ffd166;
-    --color-red: #ff4d6d;
-    --color-violet: #b36bff;
+  /* Cores base */
+  --color-bg: #07090f;
+  --color-bg-start: #080a10;
+  --color-bg-mid: #101827;
+  --color-bg-end: #07110f;
+  --color-panel: rgba(12, 18, 27, 0.88);
+  --color-panel-strong: rgba(17, 25, 37, 0.96);
+  --color-line: rgba(142, 170, 201, 0.28);
+  --color-text: #edf5ff;
+  --color-muted: #9baec5;
+  --color-cyan: #36d8ff;
+  --color-green: #63f0a0;
+  --color-gold: #ffd166;
+  --color-red: #ff4d6d;
+  --color-violet: #b36bff;
 
-    /* Espacamento */
-    --space-0: 0;
-    --space-1: 3px;
-    --space-2: 5px;
-    --space-3: 8px;
-    --space-4: 10px;
-    --space-5: 12px;
-    --space-6: 14px;
-    --space-7: 16px;
-    --space-8: 18px;
-    --space-9: 20px;
-    --space-10: 28px;
+  /* Espacamento */
+  --space-0: 0;
+  --space-1: 3px;
+  --space-2: 5px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 20px;
+  --space-10: 28px;
 
-    /* Raios e dimensoes comuns */
-    --radius: 8px;
-    --radius-pill: 999px;
-    --hud-width: 318px;
-    --radar-width: 188px;
-    --menu-width: 620px;
+  /* Raios e dimensoes comuns */
+  --radius: 8px;
+  --radius-pill: 999px;
+  --hud-width: 318px;
+  --radar-width: 188px;
+  --menu-width: 620px;
 
-    /* Aliases usados pelo CSS existente */
-    --bg: var(--color-bg);
-    --panel: var(--color-panel);
-    --panel-strong: var(--color-panel-strong);
-    --line: var(--color-line);
-    --text: var(--color-text);
-    --muted: var(--color-muted);
-    --cyan: var(--color-cyan);
-    --green: var(--color-green);
-    --gold: var(--color-gold);
-    --red: var(--color-red);
-    --violet: var(--color-violet);
+  /* Aliases usados pelo CSS existente */
+  --bg: var(--color-bg);
+  --panel: var(--color-panel);
+  --panel-strong: var(--color-panel-strong);
+  --line: var(--color-line);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --cyan: var(--color-cyan);
+  --green: var(--color-green);
+  --gold: var(--color-gold);
+  --red: var(--color-red);
+  --violet: var(--color-violet);
 }

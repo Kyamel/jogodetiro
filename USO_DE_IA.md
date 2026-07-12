@@ -134,6 +134,19 @@ Causa identificada pela IA: na decisao por utilidade (`decidirAcaoBotSimples`), 
 
 Solucao: quando o inimigo esta praticamente em cima (menos de 120 px) e o bot ainda tem vida, `ATACAR` recebe prioridade e as acoes de fuga/cobertura sao suprimidas. Na execucao, se o recuo esta bloqueado por parede, o bot desliza de lado em vez de grudar nela, e continua atirando. Agora um bot pressionado revida em vez de ficar passivo.
 
+### 4. Bots "tremendo" em certos momentos
+
+Prompt do usuario: "ainda acontece dos bots ficarem tremendo em certas hora".
+
+Causa identificada pela IA: mesmo com a rotacao suavizada, o bot ainda trocava de decisao a cada quadro. Medindo o comportamento real no navegador, alguns bots invertiam a direcao de movimento mais de 30 vezes por segundo. Isso acontecia porque a decisao alternava entre acoes (por exemplo `BUSCAR_RECURSO` e `PATRULHAR`, quando uma caixa estava no limite da visao) e, dentro do ataque, entre aproximar e desviar bem na fronteira das faixas de distancia. Cada troca apontava o bot para um lado diferente, resultando no tremor.
+
+Solucao: foi aplicada histerese em dois pontos, seguindo a mesma ideia de "limiar mais tempo minimo" ja usada na troca de alvo do chefao.
+
+- Histerese de acao (`decidirAcaoBotSimples`): uma vez escolhida, a acao e mantida por um tempo minimo e so troca se outra ficar claramente melhor ou se for uma emergencia.
+- Histerese de banda de distancia (`modoCombate`): as faixas de aproximar, desviar e recuar passaram a ter zonas mortas, entao o bot so muda de modo depois de entrar bem na proxima faixa, em vez de alternar na fronteira exata.
+
+Depois da correcao, a medicao no navegador mostrou a taxa de inversao de direcao caindo de cerca de 11 por segundo por bot (pior caso 34) para menos de 2 por segundo, o que elimina o tremor mantendo o comportamento tatico.
+
 ## Melhorias de manutencao
 
 A IA tambem ajudou a identificar blocos de codigo dificeis de manter, especialmente na renderizacao. Um exemplo foi a funcao `desenharPersonagem`, que concentrava muitos `if/else` de skins, armas, corpo, rosto, escudo e barra de vida.
@@ -211,6 +224,7 @@ Com isso, movimento, projeteis e efeitos passaram a se comportar de forma mais c
 - Inversao do strafe ao travar numa quina: bloco de deteccao de travamento em `js/game-loop.js`.
 - Tatica de cerco/pinca em time: `anguloParaBordaMaisProxima()`, `aliadosEngajando()` e `posicaoDeCerco()` em `js/bot-ai.js`.
 - Prioridade de ataque a curta distancia: `decidirAcaoBotSimples()` e `executarAcaoBotSimples()` em `js/bot-ai.js`.
+- Histerese de acao e de banda de distancia (correcao do tremor): `decidirAcaoBotSimples()` e `modoCombate()` em `js/bot-ai.js`.
 
 ## Validacoes realizadas com apoio da IA
 

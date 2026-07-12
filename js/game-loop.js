@@ -397,16 +397,16 @@ function update(deltaMs = MS_POR_FRAME) {
           pertoDaBorda: dBC > safeZone.radius - 120,
           inimigoPerto: !!(alvoM && menorD < 190)
         };
-        let decisaoBot = decidirAcaoBotSimples(bot, contextoBot);
-        bot.acaoAtual = decisaoBot;
+        let decisaoBot = decidirAcaoBotSimples(bot, contextoBot, now);
         executarAcaoBotSimples(bot, decisaoBot, contextoBot, now);
       } else {
         if (alvoM) {
           let miraAlvo = Math.atan2(alvoM.y - bot.y, alvoM.x - bot.x);
           girarEntidadePara(bot, miraAlvo);
-          if (!visaoLimpa || menorD > 250) {
+          let modo = !visaoLimpa ? 'aproxima' : modoCombate(bot, menorD);
+          if (modo === 'aproxima') {
             moverEntidade(bot, Math.cos(miraAlvo) * bot.speed, Math.sin(miraAlvo) * bot.speed);
-          } else if (menorD < 150) {
+          } else if (modo === 'recua') {
             moverEntidade(
               bot,
               -Math.cos(miraAlvo) * (bot.speed * 0.8),
