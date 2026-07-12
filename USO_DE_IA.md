@@ -147,6 +147,14 @@ Solucao: foi aplicada histerese em dois pontos, seguindo a mesma ideia de "limia
 
 Depois da correcao, a medicao no navegador mostrou a taxa de inversao de direcao caindo de cerca de 11 por segundo por bot (pior caso 34) para menos de 2 por segundo, o que elimina o tremor mantendo o comportamento tatico.
 
+### 5. Bots que nao atacam no fim da partida
+
+Prompt do usuario: "pq alguns dos bots que ficam pro final da partida n me atacam?".
+
+Causa identificada pela IA: a acao `VOLTAR_ZONA` tinha score alto (70) sempre que o bot estava "perto da borda" da zona segura, mesmo ainda dentro dela. Como a zona encolhe ao longo da partida, no fim ela fica pequena e quase toda a area jogavel conta como "perto da borda". Assim, um bot que estava seguro dentro da zona, mas perto do limite, largava o combate e ia para o centro em vez de atacar o jogador. Medindo no navegador, um bot dentro da zona com o jogador a 130 px de distancia ainda escolhia voltar ao centro.
+
+Solucao: o score de `VOLTAR_ZONA` foi separado em dois casos. Se o bot esta de fato fora da zona (tomando dano do gas), a prioridade continua maxima (130) para ele fugir. Se ele esta apenas perto da borda, mas ainda dentro, o score virou apenas um empurrao suave para o centro (35): fica acima de patrulhar, mas abaixo de atacar. Com isso, no fim da partida os bots continuam te enfrentando quando estao seguros dentro da zona, e so priorizam voltar quando realmente saem dela.
+
 ## Melhorias de manutencao
 
 A IA tambem ajudou a identificar blocos de codigo dificeis de manter, especialmente na renderizacao. Um exemplo foi a funcao `desenharPersonagem`, que concentrava muitos `if/else` de skins, armas, corpo, rosto, escudo e barra de vida.

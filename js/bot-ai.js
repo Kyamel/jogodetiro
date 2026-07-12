@@ -139,7 +139,11 @@ function decidirAcaoBotSimples(bot, contexto, now) {
   let scoreRecuo =
     bot.hp < 35 && !coladoNoInimigo && contexto.inimigoPerto ? (contexto.cobertura ? 65 : 90) : 0;
   const acoes = [
-    {tipo: 'VOLTAR_ZONA', score: contexto.foraDaZona ? 130 : contexto.pertoDaBorda ? 70 : 0},
+    // Fora da zona (no gas): fugir e prioridade maxima. Apenas perto da borda mas
+    // ainda dentro: so um empurrao suave para o centro (acima de patrulhar, abaixo
+    // de atacar), senao no fim da partida a zona fica pequena, quase tudo vira
+    // "perto da borda" e os bots deixam de atacar o jogador para voltar ao centro.
+    {tipo: 'VOLTAR_ZONA', score: contexto.foraDaZona ? 130 : contexto.pertoDaBorda ? 35 : 0},
     {tipo: 'BUSCAR_COBERTURA', score: scoreCobertura},
     {tipo: 'BUSCAR_RECURSO', score: scoreRecurso},
     {tipo: 'ATACAR', score: scoreAtaque},
