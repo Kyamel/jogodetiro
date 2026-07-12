@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Mega Arena Royale - Interface 5.5</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <div id="animacaoFim"><h1 id="textoAnimado">TITULO</h1><p id="subTextoAnimado" style="font-size: 28px; font-weight: bold; margin-top: 10px; text-shadow: 2px 2px 0px #000;"></p></div>
+
+    <div id="ui">
+        <div class="hud-top">
+            <div>
+                <span class="hud-kicker">Operador ativo</span>
+                <div class="hud-title">Mega Arena</div>
+            </div>
+            <div class="hud-badge">Nv. <span id="nivelText">1</span></div>
+        </div>
+        <div class="hud-bars">
+            <div>
+                <div class="hud-bar-head"><span>HP</span><span class="hud-value" id="hp">100</span></div>
+                <div class="hud-track"><div class="hud-fill" id="hpBar"></div></div>
+            </div>
+            <div>
+                <div class="hud-bar-head"><span>Escudo</span><span class="hud-value" id="escudo">0</span></div>
+                <div class="hud-track"><div class="hud-fill" id="escudoBar"></div></div>
+            </div>
+        </div>
+        <div class="hud-metrics">
+            <div class="hud-metric"><small>Dano</small><span id="dano">10</span></div>
+            <div class="hud-metric"><small>Velocidade</small><span id="vel">Normal</span></div>
+            <div class="hud-metric" id="uiBasuca"><small>Basuca</small><span id="municaoBasuca">2</span></div>
+        </div>
+        <div class="hud-mode"><span id="infoModoTexto">Inimigos vivos</span><strong id="botsText">9</strong></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="radarPanel">
+        <div class="radar-title"><span>Radar</span><span>Online</span></div>
+        <canvas id="radarCanvas" width="164" height="164"></canvas>
+    </div>
+    <div id="abilityDeck" class="ability-deck">
+        <div id="skillDash" class="ability-chip"><strong>Espaco</strong><br>Esquiva</div>
+        <div id="skillSword" class="ability-chip locked"><strong>1</strong><br>Espada</div>
+        <div id="skillBomb" class="ability-chip locked"><strong>2</strong><br>Granada</div>
+        <div id="skillBazooka" class="ability-chip locked"><strong>3</strong><br>Basuca</div>
+    </div>
+    <div id="instructions">WASD: Mover | Mouse: Mirar | Clique: Atirar | 1: Espada | 2: Granada | 3: Basuca | Espaço: Esquiva</div>
+    
+    <div id="menuPrincipal" class="janela-menu">
+        <p class="menu-eyebrow">Arena tática 2D</p>
+        <h1>Mega Arena Royale</h1>
+        <p class="menu-author">Autoria: <span>Tiago Linhares Medeiros</span></p>
+        <p class="menu-summary">Escolha seu modo, entre na arena e sobreviva usando mira, mobilidade, cobertura e melhorias permanentes.</p>
+        <div class="moedas-display"><span>💰 Moedas: <span id="menuMoedas">0</span></span> <span>💎 Diamantes: <span id="menuDiamantes">0</span></span></div>
+        <div class="mode-panel">
+            <select id="selectModo" class="seletor-modo" onchange="atualizarMenuModo()">
+                <option value="solo">🗡️ Modo: SOLO (1v9)</option>
+                <option value="duo">🤝 Modo: DUPLAS (2v2)</option>
+                <option value="boss">👹 Modo: CHEFÃO (4v1)</option>
+            </select>
+            <div id="menuDificuldade">
+                <p>Escolha a intensidade da partida</p>
+                <div class="difficulty-grid">
+                    <button class="btn" onclick="iniciarJogo(1)">1</button>
+                    <button class="btn" onclick="iniciarJogo(2)">2</button>
+                    <button class="btn" onclick="iniciarJogo(3)">3</button>
+                    <button class="btn" onclick="iniciarJogo(4)">4</button>
+                    <button class="btn btn-5" onclick="iniciarJogo(5)">5</button>
+                </div>
+            </div>
+        </div>
+        <div id="menuBoss" style="display: none;">
+            <p style="color: #ccc;">Derrote o Titã para avançar. Vença o Nível 10 para liberar a Basuca!</p>
+            <button class="btn" style="background: #9C27B0; width: 100%; font-size: 22px; padding: 15px;" onclick="iniciarJogoBoss()">🔥 ENFRENTAR CHEFÃO NÍVEL <span id="textoNivelBoss">1</span> 🔥</button>
+        </div>
+        <div class="menu-actions">
+            <button class="btn btn-passe" onclick="abrirPasse()">🏆 Passe de Batalha</button>
+            <button class="btn btn-loja" onclick="abrirLoja()">🛒 Loja e Vestiário</button>
+        </div>
+    </div>
+
+    <div id="menuPasse" class="janela-menu" style="width: 600px;">
+        <h1 style="color: #00BCD4;">🏆 PASSE DE BATALHA</h1>
+        <div class="moedas-display"><span>💰 <span id="passeMoedas">0</span></span> <span>💎 <span id="passeDiamantes">0</span></span></div>
+        
+        <div id="passeStatus" style="background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333;">
+            <h2 style="margin:0 0 10px 0; color: white;" id="textoPatamar">Patamar Atual: 0/30</h2>
+            <p style="margin:0; font-size: 16px; color: #aaa;" id="textoCustoPasse">Custo por Patamar: 100 💎</p>
+            <button id="btnComprarVip" class="btn" style="background: #9C27B0; width: 100%; margin-top: 15px; font-size: 18px;" onclick="comprarVip()">⭐ COMPRAR PASSE VIP (10.000 💰)</button>
+            <p style="margin:8px 0 0 0; font-size: 13px; color: #ff9800;">O VIP custa metade dos diamantes por nível e dá o dobro de prêmios!</p>
+        </div>
+
+        <h3 style="color: #FFEB3B; margin-top: 20px; text-align: left; border-bottom: 2px solid #555; padding-bottom: 5px;">📋 MISSÕES ATIVAS</h3>
+        <div id="listaMissoes"></div>
+
+        <h3 style="color: #00BCD4; margin-top: 30px; text-align: left; border-bottom: 2px solid #555; padding-bottom: 5px;">🎁 RECOMPENSAS DO PASSE</h3>
+        <div id="listaPatamares"></div>
+
+        <button class="btn btn-5" style="width: 100%; margin-top: 20px;" onclick="fecharPasse()">VOLTAR AO MENU</button>
+    </div>
+
+    <div id="menuLoja" class="janela-menu">
+        <h1>Arsenal de Guerra</h1>
+        <div class="moedas-display"><span>💰 <span id="lojaMoedas">0</span></span> <span>💎 <span id="lojaDiamantes">0</span></span></div>
+        
+        <div class="loja-item"><div>🔫 Rifle Dourado</div><button id="btnComprarRifle" onclick="comprarItem('rifle', 300)">300 💰</button></div>
+        <div class="loja-item"><div>🛡️ Colete Tático</div><button id="btnComprarColete" onclick="comprarItem('colete', 200)">200 💰</button></div>
+        <div class="loja-item"><div>🥷 Ninja (Atributo Vel)</div><button id="btnComprarNinja" onclick="comprarItem('ninja', 500)">500 💰</button></div>
+        <div class="loja-item"><div>🗡️ Espada de Plasma</div><button id="btnComprarEspada" onclick="comprarItem('espada', 600)">600 💰</button></div>
+        <div class="loja-item"><div>💣 Granadas</div><button id="btnComprarGranada" onclick="comprarItem('granada', 800)">800 💰</button></div>
+        <div class="loja-item"><div>💉 Mod. Regen</div><button id="btnComprarRegen" onclick="comprarItem('regen', 1000)">1000 💰</button></div>
+        
+        <h3 style="color: cyan; margin: 15px 0 5px 0;">✨ ITENS VVIP ✨</h3>
+        <div class="loja-item"><div>🥾 Botas Táticas</div><button id="btnComprarBotas" onclick="comprarItem('botas', 1200)">1200 💰</button></div>
+        <div class="loja-item"><div>❤️ Coração de Titã</div><button id="btnComprarTita" onclick="comprarItem('tita', 1500)">1500 💰</button></div>
+        <div class="loja-item"><div>🦇 Vampirismo</div><button id="btnComprarVampiro" onclick="comprarItem('vampiro', 2000)">2000 💰</button></div>
+
+        <h3 style="color: #FFEB3B; margin: 15px 0 5px 0;">👕 VESTIÁRIO (Skins) 👕</h3>
+        <div class="loja-item"><div>🔵 Padrão (Azul)</div><button id="btnSkinPadrao" onclick="comprarOuEquiparSkin('padrao', 0)">USANDO</button></div>
+        <div class="loja-item"><div>🏜️ Deserto (Areia)</div><button id="btnSkinDeserto" onclick="comprarOuEquiparSkin('deserto', 150)">150 💰</button></div>
+        <div class="loja-item"><div>☢️ Tóxico (Neon)</div><button id="btnSkinNeon" onclick="comprarOuEquiparSkin('neon', 300)">300 💰</button></div>
+        <div class="loja-item"><div>👻 Fantasma (Branco)</div><button id="btnSkinFantasma" onclick="comprarOuEquiparSkin('fantasma', 500)">500 💰</button></div>
+        <div class="loja-item"><div>👑 Realeza (Roxo)</div><button id="btnSkinRealeza" onclick="comprarOuEquiparSkin('realeza', 800)">800 💰</button></div>
+        <div class="loja-item"><div>🏆 Dourada (Ouro)</div><button id="btnSkinDourada" onclick="comprarOuEquiparSkin('dourada', 1000)">1000 💰</button></div>
+        <div class="loja-item" id="divSkinCiborgue" style="display:none; border-color: #00BCD4;"><div>🤖 Ciborgue (VIP Lvl 30)</div><button id="btnSkinCiborgue" onclick="comprarOuEquiparSkin('ciborgue', 0)">EQUIPAR</button></div>
+
+        <button class="btn btn-5" style="width: 100%; margin-top: 15px;" onclick="fecharLoja()">VOLTAR AO MENU</button>
+    </div>
+    
+    <div id="menuGameOver" class="janela-menu">
+        <h1 id="tituloFim">FIM DE JOGO</h1>
+        <h2 style="color: #fff;" id="colocacaoTexto">Calculando...</h2>
+        <h3 style="color: gold;" id="moedasGanhasTexto">+0 Moedas</h3>
+        <button class="btn btn-loja" onclick="voltarAoMenu()">VOLTAR AO MENU</button>
+    </div>
+
+    <script src="js/core.js?v=teclado-3"></script>
+    <script src="js/save.js"></script>
+    <script src="js/world-state.js?v=delta-1"></script>
+    <script src="js/battle-pass.js"></script>
+    <script src="js/menus.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/input.js?v=teclado-3"></script>
+    <script src="js/helpers.js"></script>
+    <script src="js/hud.js"></script>
+    <script src="js/game-setup.js?v=teclado-3"></script>
+    <script src="js/entities.js?v=delta-1"></script>
+    <script src="js/boss-fsm.js"></script>
+    <script src="js/bot-ai.js"></script>
+    <script src="js/game-loop.js?v=delta-1"></script>
+    <script src="js/render.js"></script>
+    <script src="js/main.js?v=delta-1"></script>
+</body>
+</html>
