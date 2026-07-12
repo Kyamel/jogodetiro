@@ -66,10 +66,30 @@ function moverEntidade(entidade, movX, movY) {
   if (canX) entidade.x = nX;
   if (canY) entidade.y = nY;
 }
+// Gira a entidade suavemente ate o angulo desejado, limitando quanto ela pode
+// virar por frame. Isso evita que bots presos em quinas/paredes fiquem "girando
+// desenfreado": mesmo que o alvo/decisao oscile a cada quadro, a rotacao real e
+// limitada, entao a mira nunca chicoteia. O passo e escalado por frameScale para
+// ficar independente de FPS.
+function girarEntidadePara(entidade, anguloAlvo, maxPasso = 0.3) {
+  if (entidade.angle === undefined || entidade.angle === null) {
+    entidade.angle = anguloAlvo;
+    return;
+  }
+  let diff = anguloAlvo - entidade.angle;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  let limite = maxPasso * (frameScale || 1);
+  if (diff > limite) diff = limite;
+  else if (diff < -limite) diff = -limite;
+  entidade.angle += diff;
+  if (entidade.angle > Math.PI) entidade.angle -= 2 * Math.PI;
+  else if (entidade.angle < -Math.PI) entidade.angle += 2 * Math.PI;
+}
 function moverBotPara(bot, ponto, multiplicador = 1) {
   if (!ponto) return;
   let ang = Math.atan2(ponto.y - bot.y, ponto.x - bot.x);
-  bot.angle = ang;
+  girarEntidadePara(bot, ang);
   moverEntidade(
     bot,
     Math.cos(ang) * bot.speed * multiplicador,

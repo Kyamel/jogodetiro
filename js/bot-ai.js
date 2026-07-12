@@ -56,6 +56,54 @@ function encontrarCoberturaBot(bot, inimigo) {
   });
   return melhor;
 }
+// --- TATICA DE TIME: cerco/pinca para encurralar o adversario ---
+// Aponta para a borda de arena mais proxima do alvo. Usamos isso para empurrar o
+// inimigo contra a parede: os bots se posicionam do lado aberto (oposto a borda).
+function anguloParaBordaMaisProxima(alvo) {
+  let dl = alvo.x;
+  let dr = arena.width - alvo.x;
+  let dt = alvo.y;
+  let db = arena.height - alvo.y;
+  let m = Math.min(dl, dr, dt, db);
+  if (m === dl) return Math.PI; // parede a esquerda
+  if (m === dr) return 0; // parede a direita
+  if (m === dt) return -Math.PI / 2; // parede em cima
+  return Math.PI / 2; // parede embaixo
+}
+// Bots vivos do mesmo time (fora o chefao) que estao engajando o mesmo alvo.
+function aliadosEngajando(bot, alvo) {
+  let grupo = bots.filter(
+    (o) =>
+      o !== bot &&
+      o.hp > 0 &&
+      !o.isBoss &&
+      o.teamId === bot.teamId &&
+      Math.hypot(o.x - alvo.x, o.y - alvo.y) < 560
+  );
+  grupo.push(bot);
+  grupo.sort((a, b) => (a.id < b.id ? -1 : 1));
+  return grupo;
+}
+// Calcula a posicao de cerco deste bot: os aliados se distribuem num leque em
+// volta do alvo, centrado no lado oposto a parede mais proxima. Assim eles cobrem
+// as rotas de fuga e prensam o inimigo contra a parede/quina.
+function posicaoDeCerco(bot, alvo) {
+  let grupo = aliadosEngajando(bot, alvo);
+  let n = grupo.length;
+  let idx = grupo.indexOf(bot);
+  if (n <= 1) return null;
+  let centro = anguloParaBordaMaisProxima(alvo) + Math.PI;
+  let leque = Math.min(Math.PI * 1.15, 0.6 + (n - 1) * 0.55);
+  let ang = centro - leque / 2 + (leque * idx) / (n - 1);
+  let raio = 150;
+  let px = alvo.x + Math.cos(ang) * raio;
+  let py = alvo.y + Math.sin(ang) * raio;
+  return {
+    x: Math.max(bot.radius + 6, Math.min(arena.width - bot.radius - 6, px)),
+    y: Math.max(bot.radius + 6, Math.min(arena.height - bot.radius - 6, py)),
+    n
+  };
+}
 function decidirAcaoBotSimples(bot, contexto) {
   let scoreRecurso = contexto.caixaVisivel
     ? valorCaixaBot(contexto.caixa, bot) - contexto.distCaixa * 0.08
@@ -65,11 +113,21 @@ function decidirAcaoBotSimples(bot, contexto) {
     ? 60 + vantagemDeCombateBot(bot, contexto.alvo, contexto.distAlvo) - contexto.distAlvo * 0.05
     : 0;
   if (bot.hp < 35) scoreAtaque -= 45;
+  // Curta distancia: se o inimigo esta praticamente em cima, o bot precisa revidar
+  // em vez de tentar fugir/cobrir. Sem isso, um bot pressionado ficava passivo e
+  // "sem conseguir atacar" quando o jogador colava nele.
+  let coladoNoInimigo = contexto.alvoVisivel && contexto.distAlvo < 120;
+  if (coladoNoInimigo && bot.hp > 25) scoreAtaque += 55;
   let scoreCobertura = contexto.cobertura ? 70 - contexto.distCobertura * 0.08 : 0;
-  if (contexto.alvoVisivel && (bot.hp < 55 || contexto.recarregando))
+  if (contexto.alvoVisivel && !coladoNoInimigo && (bot.hp < 55 || contexto.recarregando))
     scoreCobertura += bot.hp < 35 ? 70 : 35;
   else scoreCobertura = 0;
-  let scoreRecuo = bot.hp < 35 && contexto.inimigoPerto ? (contexto.cobertura ? 65 : 90) : 0;
+  let scoreRecuo =
+    bot.hp < 35 && !coladoNoInimigo && contexto.inimigoPerto
+      ? contexto.cobertura
+        ? 65
+        : 90
+      : 0;
   const acoes = [
     {tipo: 'VOLTAR_ZONA', score: contexto.foraDaZona ? 130 : contexto.pertoDaBorda ? 70 : 0},
     {tipo: 'BUSCAR_COBERTURA', score: scoreCobertura},
@@ -96,26 +154,42 @@ function executarAcaoBotSimples(bot, decisao, contexto, now) {
     return;
   }
   if (decisao === 'RECUAR' && contexto.alvo) {
-    bot.angle = Math.atan2(contexto.alvo.y - bot.y, contexto.alvo.x - bot.x);
+    girarEntidadePara(bot, Math.atan2(contexto.alvo.y - bot.y, contexto.alvo.x - bot.x));
     let fuga = Math.atan2(bot.y - contexto.alvo.y, bot.x - contexto.alvo.x);
     moverEntidade(bot, Math.cos(fuga) * bot.speed, Math.sin(fuga) * bot.speed);
     return;
   }
   if (decisao === 'ATACAR' && contexto.alvo) {
-    bot.angle = Math.atan2(contexto.alvo.y - bot.y, contexto.alvo.x - bot.x);
-    if (!contexto.alvoVisivel || contexto.distAlvo > 250) {
-      moverEntidade(bot, Math.cos(bot.angle) * bot.speed, Math.sin(bot.angle) * bot.speed);
+    let miraAlvo = Math.atan2(contexto.alvo.y - bot.y, contexto.alvo.x - bot.x);
+    girarEntidadePara(bot, miraAlvo);
+    // Em modo de times, se ha aliados engajando o mesmo alvo, o bot ocupa sua
+    // posicao de cerco (pinca) para encurralar o inimigo, em vez de so orbitar.
+    let cerco = modoJogo === 'duo' && contexto.alvoVisivel ? posicaoDeCerco(bot, contexto.alvo) : null;
+    if (cerco && Math.hypot(cerco.x - bot.x, cerco.y - bot.y) > 40) {
+      let ang = Math.atan2(cerco.y - bot.y, cerco.x - bot.x);
+      moverEntidade(bot, Math.cos(ang) * bot.speed, Math.sin(ang) * bot.speed);
+    } else if (!contexto.alvoVisivel || contexto.distAlvo > 250) {
+      moverEntidade(bot, Math.cos(miraAlvo) * bot.speed, Math.sin(miraAlvo) * bot.speed);
     } else if (contexto.distAlvo < 150) {
-      moverEntidade(
-        bot,
-        -Math.cos(bot.angle) * (bot.speed * 0.8),
-        -Math.sin(bot.angle) * (bot.speed * 0.8)
-      );
+      // Recua mantendo a mira; se a fuga esta bloqueada (encurralado), desliza de
+      // lado em vez de grudar na parede e travar.
+      let recX = -Math.cos(miraAlvo) * (bot.speed * 0.8);
+      let recY = -Math.sin(miraAlvo) * (bot.speed * 0.8);
+      let antesX = bot.x;
+      let antesY = bot.y;
+      moverEntidade(bot, recX, recY);
+      if (Math.hypot(bot.x - antesX, bot.y - antesY) < bot.speed * 0.2) {
+        moverEntidade(
+          bot,
+          Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
+          Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
+        );
+      }
     } else {
       moverEntidade(
         bot,
-        Math.cos(bot.angle + (Math.PI / 2) * bot.strafeDir) * bot.speed,
-        Math.sin(bot.angle + (Math.PI / 2) * bot.strafeDir) * bot.speed
+        Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
+        Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
       );
     }
     if (contexto.alvoVisivel && now - bot.lastShot > bot.shootCooldown && contexto.distAlvo < 430) {

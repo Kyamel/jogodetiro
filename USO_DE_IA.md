@@ -26,6 +26,10 @@ Durante o desenvolvimento, o usuario tambem solicitou:
 - Corrigir problemas de teclado no Firefox.
 - Verificar e implementar delta time no loop principal do jogo.
 - Juntar a documentacao anexada sobre uso de IA neste arquivo.
+- Melhorar a IA dos bots, que era o foco principal do trabalho de IA. Nesse pedido o usuario apontou tres problemas:
+  - "os bots tem hora que nas beiradas do mapa em quinas ficam girando desenfreado";
+  - "incorporar estrategias de time para encurralar o adversario no modo de times";
+  - "tem uns bots no modo solo que a gente ta em cima dele e ele nao consegue atacar a gente".
 
 ## Arquivos utilizados
 
@@ -98,6 +102,38 @@ Quando um bot simples esta com pouca vida ou esta recarregando, ele pode procura
 
 Com isso, os bots comuns deixam de apenas atacar ou recuar em linha reta. Em algumas situacoes, eles passam a tentar se posicionar de maneira mais inteligente, usando o cenario a favor deles.
 
+## Melhorias na IA dos bots (foco do trabalho)
+
+Como o trabalho e de IA, o usuario pediu para melhorar especificamente a inteligencia dos bots e apontou tres problemas concretos. Cada um foi tratado abaixo, junto do prompt que motivou a mudanca.
+
+### 1. Bots girando descontroladamente em quinas e beiradas
+
+Prompt do usuario: "os bots tem hora que nas beiradas do mapa em quinas ficam girando desenfreado, isso eh um problema que tentamos solucionar usando um threshold mas ainda persiste".
+
+Causa identificada pela IA: o angulo do bot (`bot.angle`) era reatribuido instantaneamente a cada quadro com `Math.atan2(...)`. Quando o bot ficava preso numa quina, o movimento era bloqueado pela parede, mas a mira continuava sendo recalculada e podia saltar de um lado para o outro a cada frame, o que aparecia como um giro descontrolado. O threshold anterior so evitava troca de alvo, entao nao resolvia o giro.
+
+Solucao: foi criada a funcao `girarEntidadePara()` em `js/entities.js`, que limita quanto a entidade pode virar por quadro (velocidade angular maxima), escalada por `frameScale` para ser independente de FPS. Todas as viradas dos bots, aliados e do chefao passaram a usar essa funcao, em vez de atribuir o angulo diretamente. Assim, mesmo que o alvo ou a decisao oscilem, a mira nunca chicoteia. Alem disso, ao primeiro sinal de travamento numa quina, o bot inverte o lado do desvio (strafe) para deslizar ao longo da parede e sair, em vez de moer contra ela.
+
+### 2. Estrategia de time para encurralar o adversario
+
+Prompt do usuario: "incorporar estrategias de time para encurralar o adversario no modo de times".
+
+Solucao: no modo de times (duo), quando um bot tem aliados vivos engajando o mesmo alvo, ele deixa de orbitar sozinho e passa a ocupar uma posicao de cerco. As funcoes novas em `js/bot-ai.js` sao:
+
+- `anguloParaBordaMaisProxima()`: descobre contra qual parede/beirada o alvo esta mais perto.
+- `aliadosEngajando()`: lista os aliados do mesmo time que estao perto do mesmo alvo.
+- `posicaoDeCerco()`: distribui os aliados num leque em volta do alvo, centrado no lado oposto a parede mais proxima. Com isso, os bots cobrem as rotas de fuga e prensam o inimigo contra a parede ou quina (pinca).
+
+O resultado e um comportamento de flanqueamento coordenado: em vez de dois bots baterem de frente, eles se abrem para lados diferentes e encurralam o adversario.
+
+### 3. Bot que nao ataca quando o jogador esta em cima dele
+
+Prompt do usuario: "tem uns bots no modo solo que a gente ta em cima dele e ele nao consegue atacar a gente".
+
+Causa identificada pela IA: na decisao por utilidade (`decidirAcaoBotSimples`), quando o bot estava recarregando ou com vida media, as acoes `BUSCAR_COBERTURA` e `RECUAR` podiam vencer `ATACAR`. Com o jogador colado, o bot ficava tentando fugir ou se cobrir e quase nao revidava. Alem disso, a curta distancia ele so tentava recuar de costas e, encurralado, travava.
+
+Solucao: quando o inimigo esta praticamente em cima (menos de 120 px) e o bot ainda tem vida, `ATACAR` recebe prioridade e as acoes de fuga/cobertura sao suprimidas. Na execucao, se o recuo esta bloqueado por parede, o bot desliza de lado em vez de grudar nela, e continua atirando. Agora um bot pressionado revida em vez de ficar passivo.
+
 ## Melhorias de manutencao
 
 A IA tambem ajudou a identificar blocos de codigo dificeis de manter, especialmente na renderizacao. Um exemplo foi a funcao `desenharPersonagem`, que concentrava muitos `if/else` de skins, armas, corpo, rosto, escudo e barra de vida.
@@ -169,14 +205,21 @@ Com isso, movimento, projeteis e efeitos passaram a se comportar de forma mais c
 - Predicao de movimento: `calcularPosicaoPredita()` em `js/boss-fsm.js`.
 - Transicoes entre PATRULHA, PERSEGUICAO, COMBATE, RECUO e BUSCA: `atualizarChefeFSM()` em `js/boss-fsm.js`.
 
+## Onde aparecem as melhorias dos bots no codigo
+
+- Limite de rotacao por quadro (correcao do giro em quinas): `girarEntidadePara()` em `js/entities.js`.
+- Inversao do strafe ao travar numa quina: bloco de deteccao de travamento em `js/game-loop.js`.
+- Tatica de cerco/pinca em time: `anguloParaBordaMaisProxima()`, `aliadosEngajando()` e `posicaoDeCerco()` em `js/bot-ai.js`.
+- Prioridade de ataque a curta distancia: `decidirAcaoBotSimples()` e `executarAcaoBotSimples()` em `js/bot-ai.js`.
+
 ## Validacoes realizadas com apoio da IA
 
 A IA ajudou a validar as alteracoes feitas no codigo. Foram realizadas verificacoes como:
 
-- Checagem de sintaxe JavaScript com `node --check`.
-- Abertura do jogo em navegador headless para confirmar que a tela inicial carregava.
-- Verificacao manual dos arquivos modificados e dos pontos principais da IA.
-- Tentativa de validacao no Firefox headless. No ambiente usado, o Firefox headless apresentou problema do proprio ambiente grafico/crash reporter, entao essa validacao nao foi conclusiva.
+- Checagem de sintaxe JavaScript com `node --check` em todos os arquivos.
+- Testes de unidade das funcoes novas de IA carregando o codigo real num contexto Node: foi confirmado que o limite de rotacao nunca e ultrapassado (5000 alvos aleatorios e um alvo oscilando entre +PI e -PI) e que a `posicaoDeCerco()` posiciona os aliados no lado aberto, prensando o alvo contra a parede.
+- Testes de ponta a ponta dirigindo o Chromium headless via protocolo do DevTools (CDP): partida em modo duo iniciada por codigo, medindo o comportamento real dos bots. Foi confirmado que a rotacao fica limitada por quadro (sem giro descontrolado), que dois cacadores flanqueiam um alvo preso na parede pelos lados opostos e que um bot com o inimigo colado permanece em `ATACAR` e dispara de forma consistente, em vez de fugir.
+- Verificacao de compatibilidade de teclado no Firefox: a captura da tecla `D` foi testada com entrada de teclado nativa via WebDriver BiDi no Firefox 148, e o personagem se moveu para a direita corretamente, confirmando que o movimento funciona no navegador.
 
 As validacoes ajudam a identificar erros de sintaxe e carregamento, mas nao substituem testes manuais completos de jogabilidade pelos integrantes do grupo.
 
@@ -195,6 +238,8 @@ Tambem e importante destacar que a IA pode cometer erros. Por isso, as alteracoe
 ## Resumo
 
 Neste projeto, a IA foi utilizada de forma transparente como ferramenta de apoio ao desenvolvimento. Ela ajudou a transformar uma logica simples de bots em uma estrutura mais organizada, com Maquina de Estados Finitos para o chefao, sistema de ameaca, predicao de movimento, memoria de curto prazo e busca de cobertura para bots simples.
+
+Como o foco do trabalho era a IA dos bots, tambem foram corrigidos e adicionados comportamentos a partir dos apontamentos do usuario: o limite de rotacao que acabou com o giro descontrolado nas quinas, a tatica de cerco em time para encurralar o adversario e a prioridade de ataque a curta distancia, para o bot revidar quando o inimigo esta em cima dele.
 
 Alem disso, a IA auxiliou na modularizacao do projeto, na criacao de tokens CSS, na melhoria de performance, na refatoracao de trechos grandes, na investigacao de compatibilidade com Firefox e na implementacao de delta time.
 

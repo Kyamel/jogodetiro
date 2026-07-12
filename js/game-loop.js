@@ -402,20 +402,21 @@ function update(deltaMs = MS_POR_FRAME) {
         executarAcaoBotSimples(bot, decisaoBot, contextoBot, now);
       } else {
         if (alvoM) {
-          bot.angle = Math.atan2(alvoM.y - bot.y, alvoM.x - bot.x);
+          let miraAlvo = Math.atan2(alvoM.y - bot.y, alvoM.x - bot.x);
+          girarEntidadePara(bot, miraAlvo);
           if (!visaoLimpa || menorD > 250) {
-            moverEntidade(bot, Math.cos(bot.angle) * bot.speed, Math.sin(bot.angle) * bot.speed);
+            moverEntidade(bot, Math.cos(miraAlvo) * bot.speed, Math.sin(miraAlvo) * bot.speed);
           } else if (menorD < 150) {
             moverEntidade(
               bot,
-              -Math.cos(bot.angle) * (bot.speed * 0.8),
-              -Math.sin(bot.angle) * (bot.speed * 0.8)
+              -Math.cos(miraAlvo) * (bot.speed * 0.8),
+              -Math.sin(miraAlvo) * (bot.speed * 0.8)
             );
           } else {
             moverEntidade(
               bot,
-              Math.cos(bot.angle + (Math.PI / 2) * bot.strafeDir) * bot.speed,
-              Math.sin(bot.angle + (Math.PI / 2) * bot.strafeDir) * bot.speed
+              Math.cos(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed,
+              Math.sin(miraAlvo + (Math.PI / 2) * bot.strafeDir) * bot.speed
             );
           }
           if (visaoLimpa && now - bot.lastShot > bot.shootCooldown && menorD < 400) {
@@ -439,6 +440,13 @@ function update(deltaMs = MS_POR_FRAME) {
     }
     if (Math.hypot(bot.x - oldX, bot.y - oldY) < bot.speed * 0.2 * frameScale) {
       bot.stuckCounter = (bot.stuckCounter || 0) + frameScale;
+      // Ao primeiro sinal de travamento (tipico de quina), inverte o lado do
+      // strafe para o bot deslizar ao longo da parede e sair, em vez de moer
+      // contra ela girando no lugar.
+      if (bot.stuckCounter > 6 && !bot.jaInverteuStrafe) {
+        bot.strafeDir *= -1;
+        bot.jaInverteuStrafe = true;
+      }
       if (bot.stuckCounter > 20) {
         bot.patrolPoint = getValidSpawn(false, false, bot.isBoss ? 60 : 20);
         if (bot.isBoss) {
@@ -452,6 +460,7 @@ function update(deltaMs = MS_POR_FRAME) {
       }
     } else {
       bot.stuckCounter = 0;
+      bot.jaInverteuStrafe = false;
     }
     atualizarVelocidadeEntidade(bot);
   }

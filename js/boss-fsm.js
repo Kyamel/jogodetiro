@@ -106,7 +106,7 @@ function executarAtaqueChefe(chefe, infoAlvo, now) {
   let alvo = infoAlvo && infoAlvo.alvo;
   if (!alvo || !infoAlvo.visivel) return;
   let dist = infoAlvo.dist;
-  chefe.angle = Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x);
+  girarEntidadePara(chefe, Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x));
   if (dist < 115 && now - (chefe.lastMelee || 0) > 1100) {
     tocarSom('espada');
     slashes.push({x: chefe.x, y: chefe.y, angle: chefe.angle, life: 1.0, radius: 95, skin: 'boss'});
@@ -220,24 +220,17 @@ function atualizarChefeFSM(chefe, now) {
       alterarEstadoChefe(chefe, ESTADO_CHEFE.RECUO, now);
       return;
     }
-    chefe.angle = Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x);
+    let miraChefe = Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x);
+    girarEntidadePara(chefe, miraChefe);
     if (dist > 330)
-      moverEntidade(
-        chefe,
-        Math.cos(chefe.angle) * chefe.speed,
-        Math.sin(chefe.angle) * chefe.speed
-      );
+      moverEntidade(chefe, Math.cos(miraChefe) * chefe.speed, Math.sin(miraChefe) * chefe.speed);
     else if (dist < 190)
-      moverEntidade(
-        chefe,
-        -Math.cos(chefe.angle) * chefe.speed,
-        -Math.sin(chefe.angle) * chefe.speed
-      );
+      moverEntidade(chefe, -Math.cos(miraChefe) * chefe.speed, -Math.sin(miraChefe) * chefe.speed);
     else
       moverEntidade(
         chefe,
-        Math.cos(chefe.angle + (Math.PI / 2) * chefe.strafeDir) * chefe.speed,
-        Math.sin(chefe.angle + (Math.PI / 2) * chefe.strafeDir) * chefe.speed
+        Math.cos(miraChefe + (Math.PI / 2) * chefe.strafeDir) * chefe.speed,
+        Math.sin(miraChefe + (Math.PI / 2) * chefe.strafeDir) * chefe.speed
       );
     executarAtaqueChefe(chefe, info, now);
     return;
@@ -252,7 +245,7 @@ function atualizarChefeFSM(chefe, now) {
       return;
     }
     let fuga = Math.atan2(chefe.y - alvo.y, chefe.x - alvo.x);
-    chefe.angle = Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x);
+    girarEntidadePara(chefe, Math.atan2(alvo.y - chefe.y, alvo.x - chefe.x));
     moverEntidade(chefe, Math.cos(fuga) * chefe.speed * 1.25, Math.sin(fuga) * chefe.speed * 1.25);
     if (visivel) executarAtaqueChefe(chefe, info, now);
     if (!visivel) alterarEstadoChefe(chefe, ESTADO_CHEFE.BUSCA, now);
